@@ -131,11 +131,9 @@ const startServer = async () => {
     await sequelize.authenticate();
     logger.info('Koneksi database berhasil');
 
-    // Sync models (development only — gunakan migration di production)
-    if (process.env.NODE_ENV === 'development') {
-      await sequelize.sync({ alter: true });
-      logger.info('Database sync selesai');
-    }
+    // Sync models — buat tabel jika belum ada
+    await sequelize.sync({ alter: false, force: false });
+    logger.info('Database sync selesai');
 
     app.listen(PORT, () => {
       logger.info(`FoodOrder server berjalan di port ${PORT}`);
