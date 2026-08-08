@@ -16,6 +16,9 @@ const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 
 const app = express();
 
+// Percayai proxy Vercel
+app.set('trust proxy', 1);
+
 // =============================================
 // SECURITY HEADERS (Helmet)
 // =============================================
