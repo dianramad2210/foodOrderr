@@ -64,7 +64,7 @@ app.use('/api/auth/login', loginLimiter);
 // CORS
 // =============================================
 app.use(cors({
-  origin: process.env.APP_URL || 'http://localhost:3000',
+  origin: process.env.APP_URL || true,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE']
 }));
