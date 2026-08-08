@@ -1,6 +1,9 @@
 'use strict';
 require('dotenv').config();
 
+// Eksplisit load mysql2 agar Vercel tidak gagal resolve dependency
+require('mysql2');
+
 const { Sequelize } = require('sequelize');
 const logger = require('../utils/logger');
 
