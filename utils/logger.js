@@ -5,9 +5,10 @@ const winston = require('winston');
 const path = require('path');
 const fs = require('fs');
 
-// Pastikan folder logs ada
+// Pastikan folder logs ada (skip di Vercel/serverless environment)
 const logDir = process.env.LOG_DIR || './logs';
-if (!fs.existsSync(logDir)) {
+const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME;
+if (!isServerless && !fs.existsSync(logDir)) {
   fs.mkdirSync(logDir, { recursive: true });
 }
 
@@ -26,6 +27,36 @@ const logFormat = printf(({ level, message, timestamp, stack, ...meta }) => {
   return `${timestamp} [${level.toUpperCase()}]: ${stack || message}${metaStr}`;
 });
 
+const transports = [
+  // Log ke console selalu (wajib di Vercel)
+  new winston.transports.Console({
+    format: combine(colorize(), timestamp({ format: 'HH:mm:ss' }), logFormat)
+  })
+];
+
+// Tambah file transports hanya jika bukan serverless
+if (!isServerless) {
+  transports.push(
+    new winston.transports.File({
+      filename: path.join(logDir, 'combined.log'),
+      maxsize: 10485760,
+      maxFiles: 5
+    }),
+    new winston.transports.File({
+      filename: path.join(logDir, 'error.log'),
+      level: 'error',
+      maxsize: 10485760,
+      maxFiles: 5
+    }),
+    new winston.transports.File({
+      filename: path.join(logDir, 'security.log'),
+      level: 'warn',
+      maxsize: 10485760,
+      maxFiles: 10
+    })
+  );
+}
+
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
   format: combine(
@@ -33,35 +64,7 @@ const logger = winston.createLogger({
     errors({ stack: true }),
     logFormat
   ),
-  transports: [
-    // Log semua level ke file combined
-    new winston.transports.File({
-      filename: path.join(logDir, 'combined.log'),
-      maxsize: 10485760, // 10MB
-      maxFiles: 5
-    }),
-    // Log error ke file terpisah
-    new winston.transports.File({
-      filename: path.join(logDir, 'error.log'),
-      level: 'error',
-      maxsize: 10485760,
-      maxFiles: 5
-    }),
-    // Log security events ke file terpisah
-    new winston.transports.File({
-      filename: path.join(logDir, 'security.log'),
-      level: 'warn',
-      maxsize: 10485760,
-      maxFiles: 10
-    })
-  ]
+  transports
 });
-
-// Tampilkan log ke console saat development
-if (process.env.NODE_ENV !== 'production') {
-  logger.add(new winston.transports.Console({
-    format: combine(colorize(), timestamp({ format: 'HH:mm:ss' }), logFormat)
-  }));
-}
 
 module.exports = logger;
