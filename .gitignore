@@ -1,0 +1,18 @@
+# FoodOrder - Sistem Pemesanan Makanan
+
+# Dependencies
+node_modules/
+
+# Environment variables - JANGAN PERNAH COMMIT .env
+.env
+
+# Logs
+logs/*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/

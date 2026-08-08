@@ -1,0 +1,165 @@
+rules:
+  # ============================================================
+  # FOODORDER - Semgrep SAST Rules
+  # Untuk menjalankan: semgrep --config .semgrep/rules.yml .
+  # ============================================================
+
+  # ---- R001: Hardcoded Secret / Credential ----
+  - id: hardcoded-secret
+    patterns:
+      - pattern: |
+          $VAR = "..."
+      - metavariable-regex:
+          metavariable: $VAR
+          regex: (password|secret|api_key|token|credential|passwd|pwd)
+      - metavariable-regex:
+          metavariable: "\"...\""
+          regex: .{6,}
+    message: |
+      Kemungkinan hardcoded credential ditemukan di variabel '$VAR'.
+      Gunakan environment variable (process.env.XXX) dan file .env.
+    languages: [javascript]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: "A02:2021 - Cryptographic Failures"
+      cwe: "CWE-798"
+
+  # ---- R002: SQL Injection - String Concatenation ----
+  - id: sql-injection-string-concat
+    patterns:
+      - pattern: |
+          $DB.query("..." + $INPUT)
+      - pattern: |
+          $DB.query(`...${$INPUT}...`)
+    message: |
+      Potensi SQL Injection: query SQL dibangun dengan string concatenation/interpolasi.
+      Gunakan prepared statement atau ORM (Sequelize) dengan parameter binding.
+    languages: [javascript]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: "A03:2021 - Injection"
+      cwe: "CWE-89"
+
+  # ---- R003: eval() Berbahaya ----
+  - id: dangerous-eval
+    pattern: eval($INPUT)
+    message: |
+      Penggunaan eval() sangat berbahaya — dapat mengeksekusi kode arbitrer (RCE).
+      Hapus eval() dan gunakan pendekatan alternatif yang aman.
+    languages: [javascript]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: "A03:2021 - Injection"
+      cwe: "CWE-95"
+
+  # ---- R004: XSS - innerHTML dengan input tidak tersanitasi ----
+  - id: xss-innerhtml
+    patterns:
+      - pattern: $EL.innerHTML = $INPUT
+      - pattern: $EL.innerHTML += $INPUT
+    message: |
+      Potensi XSS: assignment ke innerHTML tanpa sanitasi.
+      Gunakan textContent untuk teks biasa, atau sanitasi dengan DOMPurify/library XSS.
+    languages: [javascript]
+    severity: WARNING
+    metadata:
+      category: security
+      owasp: "A03:2021 - Injection"
+      cwe: "CWE-79"
+
+  # ---- R005: console.log data sensitif ----
+  - id: console-log-sensitive
+    patterns:
+      - pattern: console.log($ARG)
+      - metavariable-regex:
+          metavariable: $ARG
+          regex: .*(password|token|secret|key|credential).*
+    message: |
+      Kemungkinan logging data sensitif ke console.
+      Hapus atau ganti dengan logger yang aman (winston) tanpa mencetak data sensitif.
+    languages: [javascript]
+    severity: WARNING
+    metadata:
+      category: security
+      owasp: "A09:2021 - Security Logging and Monitoring Failures"
+      cwe: "CWE-532"
+
+  # ---- R006: Error yang mengekspos stack trace ke response ----
+  - id: error-stack-exposed
+    patterns:
+      - pattern: res.json({..., stack: $ERR.stack, ...})
+      - pattern: res.send($ERR.stack)
+    message: |
+      Stack trace error dikirim ke client — dapat mengekspos informasi internal server.
+      Kirim pesan error generik ke client, log detail hanya di server.
+    languages: [javascript]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: "A05:2021 - Security Misconfiguration"
+      cwe: "CWE-209"
+
+  # ---- R007: Session tanpa httpOnly ----
+  - id: session-no-httponly
+    pattern: |
+      session({..., cookie: {..., httpOnly: false, ...}, ...})
+    message: |
+      Cookie session dengan httpOnly: false — rentan terhadap XSS cookie theft.
+      Selalu gunakan httpOnly: true pada session cookie.
+    languages: [javascript]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: "A07:2021 - Identification and Authentication Failures"
+      cwe: "CWE-1004"
+
+  # ---- R008: Penggunaan Math.random() untuk token keamanan ----
+  - id: weak-random-for-security
+    patterns:
+      - pattern: Math.random()
+    message: |
+      Math.random() tidak kriptografis dan tidak aman untuk token/ID keamanan.
+      Gunakan crypto.randomBytes() atau uuid() untuk keperluan keamanan.
+    languages: [javascript]
+    severity: WARNING
+    metadata:
+      category: security
+      owasp: "A02:2021 - Cryptographic Failures"
+      cwe: "CWE-338"
+
+  # ---- R009: Missing authorization check ----
+  - id: route-without-auth-middleware
+    patterns:
+      - pattern: |
+          $ROUTER.delete($PATH, $CONTROLLER)
+      - pattern: |
+          $ROUTER.put($PATH, $CONTROLLER)
+    message: |
+      Route DELETE/PUT mungkin tidak memiliki middleware autentikasi/otorisasi.
+      Pastikan setiap route yang memodifikasi data dilindungi dengan authenticate() dan authorize().
+    languages: [javascript]
+    severity: WARNING
+    metadata:
+      category: security
+      owasp: "A01:2021 - Broken Access Control"
+      cwe: "CWE-306"
+
+  # ---- R010: MD5/SHA1 untuk password (hashing lemah) ----
+  - id: weak-hash-algorithm
+    patterns:
+      - pattern: crypto.createHash('md5')
+      - pattern: crypto.createHash('sha1')
+      - pattern: crypto.createHash("md5")
+      - pattern: crypto.createHash("sha1")
+    message: |
+      MD5 dan SHA1 tidak aman untuk hashing password.
+      Gunakan bcrypt, Argon2, atau scrypt untuk password hashing.
+    languages: [javascript]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: "A02:2021 - Cryptographic Failures"
+      cwe: "CWE-327"
